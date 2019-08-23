@@ -3,6 +3,10 @@ import numpy as np;
 import imutils;
 
 HEALTHBAR_WIDTH = 92;
+DD = False;
+CA = False;
+BB = False;
+CV = False;
 
 def processScreenshot(image):
     img = cv2.imread(image, 1)
@@ -46,8 +50,6 @@ def processScreenshot(image):
             0 < int(boundRect[ii][1] - 30) < 1080 and 0 < int(boundRect[ii][0] + HEALTHBAR_WIDTH/2) < 1920 and
             blurred[int(boundRect[ii][1] - 28), int(boundRect[ii][0] + HEALTHBAR_WIDTH/2 - 5)] > 0):
             
-            print(cleanimg[int(boundRect[ii][1] -28), int(boundRect[ii][0] + HEALTHBAR_WIDTH/2+1)]);
-            
             cv2.rectangle(img, (int(boundRect[ii][0]), int(boundRect[ii][1])), \
                       (int(boundRect[ii][0]+boundRect[ii][2]), int(boundRect[ii][1]+boundRect[ii][3])), (255,0,0), 2)
             
@@ -55,24 +57,25 @@ def processScreenshot(image):
             cv2.circle(img, (int(boundRect[ii][0] + HEALTHBAR_WIDTH/2), int(boundRect[ii][1] + getBarOffset())), 10, (255,0,0))
             
             # determine ship class
-            cv2.circle(img, (int(boundRect[ii][0] + HEALTHBAR_WIDTH/2 + 1), int(boundRect[ii][1] - 28)), 2, (255,0,0))
-            cv2.circle(img, (int(boundRect[ii][0] + HEALTHBAR_WIDTH/2 - 1), int(boundRect[ii][1] - 28)), 2, (255,255,0))
-            cv2.circle(img, (int(boundRect[ii][0] + HEALTHBAR_WIDTH/2 - 3), int(boundRect[ii][1] - 30)), 2, (0,255,0))
+            #cv2.circle(img, (int(boundRect[ii][0] + HEALTHBAR_WIDTH/2 + 1), int(boundRect[ii][1] - 28)), 2, (255,0,0))
+            #cv2.circle(img, (int(boundRect[ii][0] + HEALTHBAR_WIDTH/2 + 1), int(boundRect[ii][1] - 28)), 2, (255,255,0))
+            #cv2.circle(img, (int(boundRect[ii][0] + HEALTHBAR_WIDTH/2 + 5), int(boundRect[ii][1] - 27)), 2, (0,255,0))
             shipType = "unknown";
             
-            caLine = cleanimg[int(boundRect[ii][1] - 28), int(boundRect[ii][0] + HEALTHBAR_WIDTH/2 + 1),0];
-            bbLine = cleanimg[int(boundRect[ii][1] - 28), int(boundRect[ii][0] + HEALTHBAR_WIDTH/2 - 1),0];
+            caLine = cleanimg[int(boundRect[ii][1] - 28), int(boundRect[ii][0] + HEALTHBAR_WIDTH/2 + 1),1];
+            bbLine = cleanimg[int(boundRect[ii][1] - 28), int(boundRect[ii][0] + HEALTHBAR_WIDTH/2 - 1),1];
             ddLine = cleanimg[int(boundRect[ii][1] - 30), int(boundRect[ii][0] + HEALTHBAR_WIDTH/2 - 3),2];
-            cvLine = cleanimg[int(boundRect[ii][1] - 27), int(boundRect[ii][0] + HEALTHBAR_WIDTH/2 + 3),0];
+            cvLine = cleanimg[int(boundRect[ii][1] - 27), int(boundRect[ii][0] + HEALTHBAR_WIDTH/2 + 5),1];
             
             if (ddLine < 150):
                 shipType = "DD";
-            elif (cvLine < 20):
-                shipType = "CA";
-            elif (caLine < 20):
-                shipType = "CA";
-            elif (bbLine < 20):
+            elif (bbLine < 50):
                 shipType = "BB";
+            elif (caLine < 50 and cvLine > 50):
+                shipType = "CA"
+            elif (cvLine < 50):
+                shipType = "CV";
+            
             
             cv2.putText(img, str(boundRect[ii][2]) + ", " + str(boundRect[ii][3]) + " " + shipType, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
         ii += 1;
@@ -85,7 +88,7 @@ def processScreenshot(image):
 
 def getBarOffset():
     
-    return 150;
+    return 200;
 
 class ShapeDetector:
     def __init__(self):
@@ -103,23 +106,55 @@ class ShapeDetector:
             ar = w / float(h)
         return str(ar)
 
-processScreenshot("lightning_5_6.png")
-#250
+#DD = True;
+CA = True;
+#BB = True;
+#CV = True;
 
-processScreenshot("colorado_6_2.png")
-#235
+if (DD):
+    processScreenshot("lightning_5_6.png")
+    #250
+    
+    processScreenshot("kagero_8_2.png")
+    #110
 
-processScreenshot("vlad_7_2.png")
-#200
+if (CA):
+    processScreenshot("cleveland_7_0.png")
+    #190
+    
+    processScreenshot("belfast_7_4.png")
+    #175
+    
+    processScreenshot("belfast_7_4_turned.png")
+    #175
+    
+    
+    processScreenshot("moskva_10_4.png")
+    #170
+    
+    processScreenshot("leander_10_6.png")
+    #130
+    
+    processScreenshot("edinburgh_12_3.png")
+    #115
 
-processScreenshot("newMexico_7_5.png")
-#175
 
-processScreenshot("kongo_10_3.png")
-#145
-
-processScreenshot("leander_10_6.png")
-#130
-
-processScreenshot("ranger_10_8.png")
-#145
+if (BB):
+    processScreenshot("colorado_6_2.png")
+    #235
+    
+    processScreenshot("vlad_7_2.png")
+    #200
+    
+    processScreenshot("newMexico_7_5.png")
+    #175
+    
+    processScreenshot("kongo_10_3.png")
+    #145
+    
+    processScreenshot("republique_11_6.png")
+    #170
+    
+if (CV):
+    processScreenshot("ranger_10_8.png")
+    #145
