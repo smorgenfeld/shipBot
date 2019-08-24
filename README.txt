@@ -1,1 +1,1 @@
-Using standard Anaconda installation in addition to opencv-python.
+Using standard Anaconda installation in addition to opencv-python, tesseract and imutils.
