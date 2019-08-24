@@ -1,6 +1,6 @@
-import cv2;
+import cv2, imutils, win32gui, time;
 import numpy as np;
-import imutils;
+from PIL import ImageGrab;
 
 HEALTHBAR_WIDTH = 92;
 DD = False;
@@ -8,8 +8,7 @@ CA = False;
 BB = False;
 CV = False;
 
-def processScreenshot(image):
-    img = cv2.imread(image, 1)
+def process(img):
     cleanimg = img.copy();
     
     lower_red = np.array([0,60,180])
@@ -85,6 +84,21 @@ def processScreenshot(image):
     #cv2.imshow("mask", blurred)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
+    
+def processScreenshot(image):
+    process(cv2.imread("screenshots/"+image, 1));
+
+def getScreen():
+    hwnd = win32gui.FindWindow(None, r'World of Warships')
+    
+    win32gui.SetForegroundWindow(hwnd)
+    time.sleep(0.1)
+    bbox = win32gui.GetWindowRect(hwnd)
+    #bbox[2] -= 5;
+    bbox = (bbox[0] + 10, bbox[1] + 32, bbox[2] - 10, bbox[3] - 10)
+    img = ImageGrab.grab(bbox)
+    
+    return cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
 
 def getBarOffset():
     
@@ -107,7 +121,7 @@ class ShapeDetector:
         return str(ar)
 
 #DD = True;
-CA = True;
+#CA = True;
 #BB = True;
 #CV = True;
 
@@ -158,3 +172,8 @@ if (BB):
 if (CV):
     processScreenshot("ranger_10_8.png")
     #145
+time.sleep(1)
+cv2.imshow("ss", getScreen())
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+
