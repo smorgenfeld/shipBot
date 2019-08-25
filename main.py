@@ -1,5 +1,5 @@
 import cv2, imutils, win32gui, time;
-import numpy as np;
+import numpy as np, pytesseract as ocr;
 from PIL import ImageGrab;
 
 HEALTHBAR_WIDTH = 92;
@@ -55,10 +55,7 @@ def process(img):
             # ship center?
             cv2.circle(img, (int(boundRect[ii][0] + HEALTHBAR_WIDTH/2), int(boundRect[ii][1] + getBarOffset())), 10, (255,0,0))
             
-            # determine ship class
-            #cv2.circle(img, (int(boundRect[ii][0] + HEALTHBAR_WIDTH/2 + 1), int(boundRect[ii][1] - 28)), 2, (255,0,0))
-            #cv2.circle(img, (int(boundRect[ii][0] + HEALTHBAR_WIDTH/2 + 1), int(boundRect[ii][1] - 28)), 2, (255,255,0))
-            #cv2.circle(img, (int(boundRect[ii][0] + HEALTHBAR_WIDTH/2 + 5), int(boundRect[ii][1] - 27)), 2, (0,255,0))
+            # determine ship class      
             shipType = "unknown";
             
             caLine = cleanimg[int(boundRect[ii][1] - 28), int(boundRect[ii][0] + HEALTHBAR_WIDTH/2 + 1),1];
@@ -75,10 +72,22 @@ def process(img):
             elif (cvLine < 50):
                 shipType = "CV";
             
+            # get enemy ship distance
+            distRect = (int(boundRect[ii][0] + HEALTHBAR_WIDTH/2 - 30), int(boundRect[ii][0] + HEALTHBAR_WIDTH/2 + 30), int(boundRect[ii][1] + 15), int(boundRect[ii][1] + 35))
+            cv2.rectangle(img, (distRect[0], distRect[2]), (distRect[1], distRect[3]), (255,0,0), 2)
+            dist = ocr.image_to_string(cleanimg[distRect[2]:distRect[3],distRect[0]:distRect[1]], config='outputbase digits')
+            print("dist: " + dist)
             
-            cv2.putText(img, str(boundRect[ii][2]) + ", " + str(boundRect[ii][3]) + " " + shipType, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+            cv2.putText(img, str(boundRect[ii][2]) + ", " + str(boundRect[ii][3]) + " " + shipType + " " + dist, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+            
+            
         ii += 1;
-
+    
+    # get ui stuff
+    # get shell flight time
+    cv2.rectangle(img, (860, 540), (905, 560), (255,0,0), 2)
+    seconds = ocr.image_to_string(cleanimg[540:560,860:905], config='outputbase digits')
+    print(seconds)
     
     cv2.imshow("img", img)
     #cv2.imshow("mask", blurred)
@@ -120,10 +129,10 @@ class ShapeDetector:
             ar = w / float(h)
         return str(ar)
 
-#DD = True;
-#CA = True;
-#BB = True;
-#CV = True;
+DD = True;
+CA = True;
+BB = True;
+CV = True;
 
 if (DD):
     processScreenshot("lightning_5_6.png")
@@ -172,8 +181,4 @@ if (BB):
 if (CV):
     processScreenshot("ranger_10_8.png")
     #145
-time.sleep(1)
-cv2.imshow("ss", getScreen())
-cv2.waitKey(0)
-cv2.destroyAllWindows()
 
