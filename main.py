@@ -2,7 +2,7 @@ import cv2, imutils, win32gui, time;
 import numpy as np, pytesseract as ocr;
 from PIL import ImageGrab;
 
-HEALTHBAR_WIDTH = 92;
+HEALTHBAR_WIDTH = 135;#92;
 DD = False;
 CA = False;
 BB = False;
@@ -18,8 +18,7 @@ def process(img):
     mask = cv2.inRange(img, lower_red, upper_red)
     blurred = cv2.GaussianBlur(mask, (3, 3), 0)
     
-    cnts = cv2.findContours(blurred.copy(), cv2.RETR_EXTERNAL,
-	cv2.CHAIN_APPROX_SIMPLE)
+    cnts = cv2.findContours(blurred.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     cnts = imutils.grab_contours(cnts)
     #sd = ShapeDetector()
     ratio = 1;
@@ -45,9 +44,9 @@ def process(img):
         # only grab health bars (will be a certain height, about 13-15 pixels,
         # will be lower than upper UI, and will have the red ship icon above the health bar)
         #cv2.circle(img, (int(boundRect[ii][0] + HEALTHBAR_WIDTH/2 - 5), int(boundRect[ii][1] - 28)), 2, (255,0,0))
-        if (13 <= boundRect[ii][3] <= 15 and boundRect[ii][1] > 100 and 
+        if (10 <= boundRect[ii][3] <= 28 and boundRect[ii][1] > 100 and 
             0 < int(boundRect[ii][1] - 30) < 1080 and 0 < int(boundRect[ii][0] + HEALTHBAR_WIDTH/2) < 1920 and
-            blurred[int(boundRect[ii][1] - 28), int(boundRect[ii][0] + HEALTHBAR_WIDTH/2 - 5)] > 0):
+            blurred[int(boundRect[ii][1] - 40), int(boundRect[ii][0] + HEALTHBAR_WIDTH/2 - 5)] > 0):
             
             cv2.rectangle(img, (int(boundRect[ii][0]), int(boundRect[ii][1])), \
                       (int(boundRect[ii][0]+boundRect[ii][2]), int(boundRect[ii][1]+boundRect[ii][3])), (255,0,0), 2)
@@ -73,10 +72,30 @@ def process(img):
                 shipType = "CV";
             
             # get enemy ship distance
-            distRect = (int(boundRect[ii][0] + HEALTHBAR_WIDTH/2 - 30), int(boundRect[ii][0] + HEALTHBAR_WIDTH/2 + 30), int(boundRect[ii][1] + 15), int(boundRect[ii][1] + 35))
+            distRect = (int(boundRect[ii][0] + HEALTHBAR_WIDTH/2 - 30), int(boundRect[ii][0] + HEALTHBAR_WIDTH/2 + 5), int(boundRect[ii][1] + 28), int(boundRect[ii][1] + 45))
             cv2.rectangle(img, (distRect[0], distRect[2]), (distRect[1], distRect[3]), (255,0,0), 2)
-            dist = ocr.image_to_string(cleanimg[distRect[2]:distRect[3],distRect[0]:distRect[1]], config='outputbase digits')
+            
+            distImg = cv2.cvtColor(cleanimg[distRect[2]:distRect[3],distRect[0]:distRect[1]], cv2.COLOR_BGR2GRAY);
+            # from https://groups.google.com/forum/#!msg/tesseract-ocr/Wdh_JJwnw94/24JHDYQbBQAJ
+            # we want the numbers to be about 30 pixels tall for best accuracy, so we scale the image up
+            distImg = cv2.resize(distImg,(int(distImg.shape[1]*3),int(distImg.shape[0]*3)))
+            
+            
+            distImgT = None;
+            dist = -1;
+            
+            for i in range(190, 100, -10):
+                k, distImgT = cv2.threshold(distImg,i,255,cv2.THRESH_BINARY);
+                distImgT = cv2.bitwise_not(distImgT);
+                dist = ocr.image_to_string(distImgT, config='outputbase digits')
+                if (dist != "" and isNumber(dist) and 3 <= len(dist) <= 4 and dist[-2] == "." and 0 <= float(dist) <= 40):
+                    print("thresh: " + str(i))
+                    break;
+            #cv2.imshow("Distance Image", distImgT);
+            
+            
             print("dist: " + dist)
+            #dist = ''.join(c for c in dist if c.isdigit() or c == ".")
             
             cv2.putText(img, str(boundRect[ii][2]) + ", " + str(boundRect[ii][3]) + " " + shipType + " " + dist, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
             
@@ -85,10 +104,40 @@ def process(img):
     
     # get ui stuff
     # get shell flight time
-    cv2.rectangle(img, (860, 540), (905, 560), (255,0,0), 2)
-    seconds = ocr.image_to_string(cleanimg[540:560,860:905], config='outputbase digits')
-    print(seconds)
+    cv2.rectangle(img, (820, 565), (870, 590), (255,0,0), 2)
+    secImg = cv2.cvtColor(cleanimg[565:590,820:870], cv2.COLOR_BGR2GRAY);
     
+    secImg = cv2.resize(secImg,(int(secImg.shape[1]*1.5),int(secImg.shape[0]*1.5)))
+    
+    secImgT = None;
+    seconds = -1;
+    
+    for i in range(190, 100, -10):
+        k, secImgT = cv2.threshold(secImg,i,255,cv2.THRESH_BINARY);
+        secImgT = cv2.bitwise_not(secImgT);
+        seconds = ocr.image_to_string(secImgT, config='outputbase digits')
+        if (seconds != "" and isNumber(seconds) and 4 <= len(seconds) <= 5 and seconds[-3] == "." and 0 <= float(seconds) <= 40):
+            break;
+    #cv2.imshow("Seconds Image", secImgT);
+    # get aiming distance
+    cv2.rectangle(img, (1020, 565), (1065, 590), (255,0,0), 2)
+    aimDistImg = cv2.cvtColor(cleanimg[565:590,1020:1065], cv2.COLOR_BGR2GRAY);
+    
+    aimDistImg = cv2.resize(aimDistImg,(int(aimDistImg.shape[1]*1.5),int(aimDistImg.shape[0]*1.5)))
+    
+    aimDistImgT = None;
+    aimDist = -1;
+    
+    for i in range(190, 100, -10):
+        k, aimDistImgT = cv2.threshold(aimDistImg,i,255,cv2.THRESH_BINARY);
+        aimDistImgT = cv2.bitwise_not(aimDistImgT);
+        aimDist = ocr.image_to_string(aimDistImgT, config='outputbase digits')
+        if (aimDist != "" and isNumber(aimDist) and 4 <= len(aimDist) <= 5 and aimDist[-3] == "." and 0 <= float(aimDist) <= 40):
+            break;
+    
+    print("Seconds: " + str(seconds));
+    print("Aiming Distance: " + str(aimDist));
+
     cv2.imshow("img", img)
     #cv2.imshow("mask", blurred)
     cv2.waitKey(0)
@@ -113,6 +162,13 @@ def getBarOffset():
     
     return 200;
 
+def isNumber(s):
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
+
 class ShapeDetector:
     def __init__(self):
         pass
@@ -129,12 +185,17 @@ class ShapeDetector:
             ar = w / float(h)
         return str(ar)
 
-DD = True;
-CA = True;
-BB = True;
-CV = True;
+#DD = True;
+#CA = True;
+#BB = True;
+#CV = True;
+#processScreenshot("lightning_5_6.png")
+#processScreenshot("leander_10_6.png")
+processScreenshot("test1.png")
+#processScreenshot("republique_11_6.png")
 
 if (DD):
+    #does't work
     processScreenshot("lightning_5_6.png")
     #250
     
@@ -155,9 +216,10 @@ if (CA):
     processScreenshot("moskva_10_4.png")
     #170
     
+    #does't work
     processScreenshot("leander_10_6.png")
     #130
-    
+     
     processScreenshot("edinburgh_12_3.png")
     #115
 
