@@ -1,8 +1,8 @@
 import cv2, imutils, win32gui, time;
-import numpy as np, pytesseract as ocr;
+import numpy as np, pytesseract as ocr, directKeys as dk;
 from PIL import ImageGrab;
 
-HEALTHBAR_WIDTH = 135;#92;
+HEALTHBAR_WIDTH = 135;#92 (for 100% UI)
 DD = False;
 CA = False;
 BB = False;
@@ -79,8 +79,7 @@ def process(img):
             # from https://groups.google.com/forum/#!msg/tesseract-ocr/Wdh_JJwnw94/24JHDYQbBQAJ
             # we want the numbers to be about 30 pixels tall for best accuracy, so we scale the image up
             distImg = cv2.resize(distImg,(int(distImg.shape[1]*3),int(distImg.shape[0]*3)))
-            
-            
+
             distImgT = None;
             dist = -1;
             
@@ -89,23 +88,56 @@ def process(img):
                 distImgT = cv2.bitwise_not(distImgT);
                 dist = ocr.image_to_string(distImgT, config='outputbase digits')
                 if (dist != "" and isNumber(dist) and 3 <= len(dist) <= 4 and dist[-2] == "." and 0 <= float(dist) <= 40):
-                    print("thresh: " + str(i))
                     break;
             #cv2.imshow("Distance Image", distImgT);
-            
-            
             print("dist: " + dist)
-            #dist = ''.join(c for c in dist if c.isdigit() or c == ".")
             
-            cv2.putText(img, str(boundRect[ii][2]) + ", " + str(boundRect[ii][3]) + " " + shipType + " " + dist, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+            # get enemy name
+            nameRect = (int(boundRect[ii][0] + HEALTHBAR_WIDTH/2 - 70), int(boundRect[ii][0] + HEALTHBAR_WIDTH/2 + 70), int(boundRect[ii][1] - 30), int(boundRect[ii][1] - 5))
+            cv2.rectangle(img, (nameRect[0], nameRect[2]), (nameRect[1], nameRect[3]), (255,0,0), 2)
             
+            nameImg = cv2.cvtColor(cleanimg[nameRect[2]:nameRect[3],nameRect[0]:nameRect[1]], cv2.COLOR_BGR2GRAY);
+            nameImg = cv2.resize(nameImg,(int(nameImg.shape[1]*3),int(nameImg.shape[0]*3)))
+
+            nameImgT = None;
+            name = "null";
+            
+            for i in range(190, 100, -10):
+                k, nameImgT = cv2.threshold(nameImg,i,255,cv2.THRESH_BINARY);
+                nameImgT = cv2.bitwise_not(nameImgT);
+                name = ocr.image_to_string(nameImgT)
+                if (name != ""):
+                    break;
+            #cv2.imshow("Distance Image", distImgT);
+            print("name: " + name)
+            
+            cv2.putText(img, str(boundRect[ii][2]) + ", " + str(boundRect[ii][3]) + " " + shipType + " " + dist + " " + name, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+            
+            #aim to the center of the ship
+            dk.MouseMoveTo(int((boundRect[ii][0] + HEALTHBAR_WIDTH/2)-955), 0)
+            aimToDist(dist);
             
         ii += 1;
     
     # get ui stuff
     # get shell flight time
     cv2.rectangle(img, (820, 565), (870, 590), (255,0,0), 2)
-    secImg = cv2.cvtColor(cleanimg[565:590,820:870], cv2.COLOR_BGR2GRAY);
+    seconds = getSeconds(cleanimg);
+    
+    #cv2.imshow("Seconds Image", secImgT);
+    # get aiming distance
+    cv2.rectangle(img, (1020, 565), (1065, 590), (255,0,0), 2)
+    seconds = getAimDist(cleanimg);
+    #print("Seconds: " + str(seconds));
+    #print("Aiming Distance: " + str(aimDist));
+
+    #cv2.imshow("img", img)
+    #cv2.imshow("mask", blurred)
+    #cv2.waitKey(0)
+    #cv2.destroyAllWindows()
+
+def getSeconds(image):
+    secImg = cv2.cvtColor(image[565:590,820:870], cv2.COLOR_BGR2GRAY);
     
     secImg = cv2.resize(secImg,(int(secImg.shape[1]*1.5),int(secImg.shape[0]*1.5)))
     
@@ -118,10 +150,12 @@ def process(img):
         seconds = ocr.image_to_string(secImgT, config='outputbase digits')
         if (seconds != "" and isNumber(seconds) and 4 <= len(seconds) <= 5 and seconds[-3] == "." and 0 <= float(seconds) <= 40):
             break;
-    #cv2.imshow("Seconds Image", secImgT);
-    # get aiming distance
-    cv2.rectangle(img, (1020, 565), (1065, 590), (255,0,0), 2)
-    aimDistImg = cv2.cvtColor(cleanimg[565:590,1020:1065], cv2.COLOR_BGR2GRAY);
+    return seconds;
+
+def getAimDist(image):
+     # get aiming distance
+    #cv2.rectangle(img, (1020, 565), (1065, 590), (255,0,0), 2)
+    aimDistImg = cv2.cvtColor(image[565:590,1020:1065], cv2.COLOR_BGR2GRAY);
     
     aimDistImg = cv2.resize(aimDistImg,(int(aimDistImg.shape[1]*1.5),int(aimDistImg.shape[0]*1.5)))
     
@@ -135,14 +169,20 @@ def process(img):
         if (aimDist != "" and isNumber(aimDist) and 4 <= len(aimDist) <= 5 and aimDist[-3] == "." and 0 <= float(aimDist) <= 40):
             break;
     
-    print("Seconds: " + str(seconds));
     print("Aiming Distance: " + str(aimDist));
+    return aimDist;
 
-    cv2.imshow("img", img)
-    #cv2.imshow("mask", blurred)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
-    
+def aimToDist(goal):
+    minDelta = 0.05;
+    for i in range(10):
+        delta = float(goal) - float(getAimDist(getScreen()));
+        print(delta)
+        if (abs(delta) < minDelta):
+            print("done in " + str(i+1) + " steps")
+            break;
+        else:
+            dk.MouseMoveTo(0,int(-delta * 64))
+
 def processScreenshot(image):
     process(cv2.imread("screenshots/"+image, 1));
 
@@ -191,8 +231,12 @@ class ShapeDetector:
 #CV = True;
 #processScreenshot("lightning_5_6.png")
 #processScreenshot("leander_10_6.png")
-processScreenshot("test1.png")
+#processScreenshot("test1.png")
 #processScreenshot("republique_11_6.png")
+
+time.sleep(3);
+#aimToDist(9);
+process(getScreen())
 
 if (DD):
     #does't work

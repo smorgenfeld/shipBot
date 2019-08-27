@@ -9,4 +9,6 @@ import directKeys as dk;
 import time;
 
 time.sleep(3);
-dk.MouseMoveTo(100,100)
+for i in range(10):
+    dk.MouseMoveTo(0,-50)
+    time.sleep(1);
